@@ -1,0 +1,1 @@
+pip repository: https://mirrors.tuna.tsinghua.edu.cn/help/pypi/
