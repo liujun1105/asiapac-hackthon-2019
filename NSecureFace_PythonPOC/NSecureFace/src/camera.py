@@ -3,7 +3,7 @@ import os
 
 camera = cv2.VideoCapture(1)
 
-username = 'liujunju'
+username = 'liusiming'
 output_folder = os.path.join(r'../resources/face-images/', username)
 
 if not os.path.exists(output_folder):
