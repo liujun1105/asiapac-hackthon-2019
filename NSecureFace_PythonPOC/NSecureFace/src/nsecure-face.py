@@ -64,7 +64,7 @@ while True:
             cv2.rectangle(image, (startX, startY), (endX, endY), (0, 0, 255), 2)
             cv2.putText(image, text, (startX, y), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (0, 0, 255), 2)
 
-    cv2.imshow('Nomura Secure Face', image)
+    cv2.imshow('Secure Face App', image)
     k = cv2.waitKey(27)
 
     if k % 256 == 27:
