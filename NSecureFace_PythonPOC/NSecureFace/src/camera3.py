@@ -1,6 +1,7 @@
 import cv2
 import os
 import argparse
+import numpy as np
 
 
 def capture_face_image(username, device, index):
@@ -9,8 +10,10 @@ def capture_face_image(username, device, index):
     if not os.path.exists(output_folder):
         os.makedirs(output_folder)
 
-    face_cascade = cv2.CascadeClassifier()
-    face_cascade.load(r'../resources/face-model/haarcascade/haarcascade_frontalface_default.xml')
+    model = cv2.dnn.readNetFromCaffe(
+        r'../resources/face-model/dnn/deploy.prototxt',
+        r'../resources/face-model/dnn/weights.caffemodel'
+    )
 
     camera = cv2.VideoCapture(device)
     cv2.namedWindow('Photo Capture Window')
@@ -21,9 +24,26 @@ def capture_face_image(username, device, index):
         if not ret:
             break
 
-        face_detections = face_cascade.detectMultiScale(photo)
-        for (x, y, w, h) in face_detections:
-            cv2.rectangle(photo, (x, y), (x + w, y + h), (255, 225, 0), 1)
+        (h, w) = photo.shape[:2]
+
+        # get our blob which is our input image
+        blob = cv2.dnn.blobFromImage(cv2.resize(photo, (300, 300)), 1.0, (300, 300), (104.0, 177.0, 123.0))
+        model.setInput(blob)
+        face_detections = model.forward()
+
+        if len(face_detections) > 0:
+            # we are making the assumption that each image has only ONE face,
+            # so find the bounding box with the largest probability
+            i = np.argmax(face_detections[0, 0, :, 2])
+            confidence = face_detections[0, 0, i, 2]
+
+            # ensure that the detection with the largest probability also
+            # means our minimum probability test (thus helping filter out weak detections)
+            if confidence > 0.7:
+                # compute the (x,y)-coordinates of the bounding box for the face
+                box = face_detections[0, 0, i, 3:7] * np.array([w, h, w, h])
+                (startX, startY, endX, endY) = box.astype("int")
+                photo = photo[startY:endY, startX:endX]
         cv2.imshow('Show Photo', photo)
 
         k = cv2.waitKey(27)

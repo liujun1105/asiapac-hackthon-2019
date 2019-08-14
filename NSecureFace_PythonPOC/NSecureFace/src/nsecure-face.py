@@ -13,7 +13,7 @@ recognizer = pickle.loads(open(r'../resources/face-recognizer/recognizer.pickle'
 le = pickle.loads(open(r'../resources/face-labels/le.pickle', 'rb').read())
 
 image_counter = 0
-camera = cv2.VideoCapture(0)
+camera = cv2.VideoCapture(1)
 while True:
     ret, image = camera.read()
 
@@ -58,11 +58,12 @@ while True:
             proba = preds[j]
             name = le.classes_[j]
 
-            # draw the bounding box of the face along with the associated probability
-            text = "{}: {:2f}%".format(name, proba * 100)
-            y = startY - 10 if startY - 10 > 10 else startY + 10
-            cv2.rectangle(image, (startX, startY), (endX, endY), (0, 0, 255), 2)
-            cv2.putText(image, text, (startX, y), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (0, 0, 255), 2)
+            if proba > 0.7:
+                # draw the bounding box of the face along with the associated probability
+                text = "{}: {:2f}%".format(name, proba * 100)
+                y = startY - 10 if startY - 10 > 10 else startY + 10
+                cv2.rectangle(image, (startX, startY), (endX, endY), (0, 0, 255), 2)
+                cv2.putText(image, text, (startX, y), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (0, 0, 255), 2)
 
     cv2.imshow('Secure Face App', image)
     k = cv2.waitKey(27)

@@ -12,7 +12,6 @@ labels = le.fit_transform(data['names'])
 print("training model ...")
 recognizer = SVC(C=1.0, kernel="linear", probability=True)
 recognizer.fit(data['embeddings'], labels)
-print(labels)
 
 # write the actual face recognition model to disk
 face_recognizer_location = r'../resources/face-recognizer'
