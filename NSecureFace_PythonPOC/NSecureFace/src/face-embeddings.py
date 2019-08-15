@@ -2,6 +2,8 @@ import cv2
 import os
 import numpy as np
 import pickle
+import imutils
+
 
 model = cv2.dnn.readNetFromCaffe(
     r'../resources/face-model/dnn/deploy.prototxt',
@@ -21,7 +23,7 @@ for (dir_path, dir_names, file_names) in os.walk(r'../resources/face-images/'):
         if file_extension in ['.png', '.jpeg', '.jpg']:
             print("found matched file %s" % file)
             image = cv2.imread(os.path.join(dir_path, file))
-
+            image = imutils.resize(image, width=600)
             # accessing the image.shape tuple and taking the elements
             (h, w) = image.shape[:2]
 

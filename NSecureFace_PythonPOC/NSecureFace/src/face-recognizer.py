@@ -13,7 +13,7 @@ def recognize(device, recognize_probability):
     embedder = cv2.dnn.readNetFromTorch(r'../resources/face-trained-model/nn4.small2.v1.t7')
 
     recognizer = pickle.loads(open(r'../resources/face-recognizer/recognizer.pickle', 'rb').read())
-    le = pickle.loads(open(r'../resources/face-labels/le.pickle', 'rb').read())
+    label = pickle.loads(open(r'../resources/face-labels/le.pickle', 'rb').read())
 
     image_counter = 0
     camera = cv2.VideoCapture(device)
@@ -59,7 +59,7 @@ def recognize(device, recognize_probability):
                 prediction = recognizer.predict_proba(vec)[0]
                 j = np.argmax(prediction)
                 probability = prediction[j]
-                name = le.classes_[j]
+                name = label.classes_[j]
 
                 # Get inference time:
                 t, _ = embedder.getPerfProfile()
