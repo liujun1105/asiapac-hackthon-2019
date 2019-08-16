@@ -2,7 +2,10 @@ import cv2
 import pickle
 import numpy as np
 import argparse
+import time
 
+
+current_milli_time = lambda: int(round(time.time() * 1000))
 
 def recognize(device, recognize_probability):
     detector = cv2.dnn.readNetFromCaffe(
@@ -68,14 +71,19 @@ def recognize(device, recognize_probability):
                     (t * 1000.0 / cv2.getTickFrequency(), name, probability * 100)
                 )
 
+                text = ''
                 if probability >= recognize_probability:
                     # draw the bounding box of the face along with the associated probability
                     text = "{:.2f} ms, {}, {:2.2f}%".format(
                         (t * 1000.0 / cv2.getTickFrequency()), name, probability * 100
                     )
-                    y = startY - 10 if startY - 10 > 10 else startY + 10
-                    cv2.rectangle(image, (startX, startY), (endX, endY), (0, 0, 255), 2)
-                    cv2.putText(image, text, (startX, y), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (0, 0, 255), 2)
+                else:
+                    text = "unknown"
+
+                y = startY - 10 if startY - 10 > 10 else startY + 10
+                cv2.rectangle(image, (startX, startY), (endX, endY), (0, 0, 255), 2)
+                cv2.putText(image, text, (startX, y), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (0, 0, 255), 2)
+
             cv2.imshow('Face Recognition', image)
 
         k = cv2.waitKey(27)
