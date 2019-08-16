@@ -1,3 +1,8 @@
 **/.idea
 **/*.png
 **/*.pyc
+
+**/face-images/**
+**/face-labels/**
+**/face-recognizer/**
+**/face-training-data/**
