@@ -23,20 +23,29 @@ namespace nsecureface
         
     public:
         
-        FaceTool(): label_count(1)
-        {
-            
-        }
+        FaceTool();
+        
+        void InitRecognizer();
+        void InitCaffeDetector();
+        void InitEmbedder();
         
         void LoadJsonConfig(std::string config_file_path);
         void StartRecognizeService();
         void Debug();
         void LaunchTestClient();
         void Close();
+        void AddTrainingData(std::string dir_path, std::string label_name);
+        
+        bool IsRecognizerInitialized();
+        bool IsEmbedderInitialized();
+        bool IsDetectorInitialized();
+        
+        void RecognizeFromImages(std::string dir_path);
     private:
-        void LoadCaffeDetector();
-        void CreateEmbeddings();
-        void LoadEmbedder();
+        
+        
+        void TrainRecognizer();
+        
         std::string GetLabelName(int label);
         
         NSecureFaceConfig config;
@@ -46,10 +55,13 @@ namespace nsecureface
         std::vector<cv::Mat> images;
         std::vector<int> labels;
         
-        //cv::face::LBPHFaceRecognizer* recognizer;
         cv::Ptr<cv::face::FaceRecognizer> recognizer;
         std::unordered_map<std::string, int> label_map;
         int label_count;
+        
+        bool recognizer_initialized;
+        bool embedder_initialized;
+        bool detector_initialized;
     };
 }
 #endif /* face_processing_hpp */
