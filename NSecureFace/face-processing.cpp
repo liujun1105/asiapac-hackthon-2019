@@ -81,9 +81,35 @@ namespace nsecureface
             config.face_model = json_config["face_model"].get<string>();
             config.dnn_network = json_config["face_detector"]["network"].get<string>();
             config.dnn_weights = json_config["face_detector"]["weights"].get<string>();
+            config.facemark_detector = json_config["facemark_detector"].get<string>();
+            config.face_capture_unknown = json_config["face_capture"]["face_unknown"].get<string>();
+            config.face_capture_negative = json_config["face_capture"]["face_negative"].get<string>();
+
+            CreateDirectories();
         }
         else {
             printf("[ERROR] failed to open configuration file config.json");
+        }
+    }
+    
+    void FaceTool::CreateDirectories()
+    {
+        FileHandle dir = fs::open(config.face_capture_unknown);
+        if (!dir.exists()) {
+            if (dir.createDirectory()) {
+                printf("successfully created folder %s\n", config.face_capture_unknown.c_str());
+            } else {
+                fprintf(stderr, "failed to create folder %s\n", config.face_capture_unknown.c_str());
+            }
+        }
+        
+        dir = fs::open(config.face_capture_negative);
+        if (!dir.exists()) {
+            if (dir.createDirectory()) {
+                printf("successfully created folder %s\n", config.face_capture_negative.c_str());
+            } else {
+                fprintf(stderr, "failed to create folder %s\n", config.face_capture_negative.c_str());
+            }
         }
     }
     
@@ -253,7 +279,7 @@ namespace nsecureface
         }
     }
 
-    void FaceTool::PerformFaceAlignment(int& label, int& distance, Rect face_rect)
+    void FaceTool::PerformFaceAlignment(int& label, double& distance, Mat& frame, Rect& face_rect)
     {
     	vector< vector<Point2f> > landmarks;
     	vector<Rect> faces = { face_rect };
@@ -270,12 +296,12 @@ namespace nsecureface
     			Point2f eye_center((left_eye.x + right_eye.x)/2.0F, (left_eye.y + right_eye.y)/2.0F);
     			double dy = (right_eye.y - left_eye.y);
     			double dx = (right_eye.x - left_eye.x);
-    			double len - sqrt(dx * dx + dy * dy);
+    			double len = sqrt(dx * dx + dy * dy);
 
     			float angle = atan2(dy, dx) * 180.0/CV_PI;
 
     			const double DESIRED_LEFT_EYE_X = 0.16;
-    			const double DESIRED_RIGHT_EYE_X = (1.0F - 0.16);
+    			const double DESIRED_RIGHT_EYE_X = (1.0F - DESIRED_LEFT_EYE_X);
 
     			const int DESIRED_FACE_WIDTH = face_rect.width;
     			const int DESIRED_FACE_HEIGHT = face_rect.height;
@@ -284,7 +310,7 @@ namespace nsecureface
     			double scale = desired_length * DESIRED_FACE_WIDTH / len;
 
     			Mat r = getRotationMatrix2D(eye_center, angle, scale);
-    			double e = DESIRED_FACE_WIDTH * 0.5f - eye_center.x;
+    			double ex = DESIRED_FACE_WIDTH * 0.5f - eye_center.x;
     			double ey = DESIRED_FACE_HEIGHT * 0.14 - eye_center.y;
 
     			r.at<double>(0, 2) += ex;
@@ -294,8 +320,8 @@ namespace nsecureface
 
     			warpAffine(output, warped, r, warped.size());
 
-    			cvColor(warped, warped, COLOR_RGB2GRAY);    			
-    			this->recognizer->predict(warped, label, confidence);    			
+    			cvtColor(warped, warped, COLOR_RGB2GRAY);
+    			this->recognizer->predict(warped, label, distance);
     		}
     	}
     }
@@ -318,9 +344,11 @@ namespace nsecureface
                 }
                 
                 Mat original_frame = frame.clone();
-
+                
+                ss.str("");
+                ss.clear();
                 ss << "Paused = " << pause;
-                putText(frame, ss.str(), cv::Point(10, 10), cv::FONT_HERSHEY_SIMPLEX, 0.45, Scalar(0, 0, 255), 2);
+                putText(frame, ss.str(), cv::Point(15, 15), cv::FONT_HERSHEY_SIMPLEX, 0.45, Scalar(0, 0, 255), 2);
 
                 Mat blobImg = blobFromImage(frame, 1.0, Size(300, 300), Scalar(104.0, 177.0, 123.0), false, false);
                 
@@ -341,8 +369,10 @@ namespace nsecureface
                         
                         Rect face_rect(cv::Point(x1, y1), cv::Point(x2, y2));
 
-                        PerformFaceAlignment(face_rect);
-
+                        int label = -1;
+                        double confidence = 0.0;
+                        PerformFaceAlignment(label, confidence, frame, face_rect);
+                        printf("[Face Alignment] person index = %d, label = %d, confidence level = %f\n", i, label, confidence);
 
                         Mat ROI = frame.clone();
                         if (face_rect.x >= 0 && face_rect.y >= 0 && face_rect.y + face_rect.height < ROI.rows && face_rect.x + face_rect.width < ROI.cols)
@@ -351,12 +381,12 @@ namespace nsecureface
                             ROI = Mat(frame, face_rect);
                         }
                         
-                        int label = -1;
-                        double confidence = 0.0;
+                        
                         cvtColor(ROI, ROI, COLOR_RGB2GRAY);
                         this->recognizer->predict(ROI, label, confidence);
                         
                         
+                        ss.str("");
                         ss.clear();
                         if (label > 0 && confidence < 20) {                            
                             printf("person index = %d, label = %d, confidence level = %f\n", i, label, confidence);
@@ -373,7 +403,7 @@ namespace nsecureface
                             if (!pause)
                             {
                                 milliseconds ms = duration_cast<milliseconds>(system_clock::now().time_since_epoch());
-                                ss << "face-unknown\\unknown_" << ms.count() << ".jpg";
+                                ss << config.face_capture_unknown << "unknown_" << ms.count() << ".jpg";
                                 imwrite(ss.str(), original_frame);
                             }
                         }
@@ -386,8 +416,10 @@ namespace nsecureface
                 if (k == 27) break;
                 else if (k == 'c' && !pause)
                 {
+                    ss.str("");
+                    ss.clear();
                     milliseconds ms = duration_cast<milliseconds>(system_clock::now().time_since_epoch());
-                    ss << "face-negative\\negative_" << ms.count() << ".jpg";
+                    ss << config.face_capture_negative << "negative_" << ms.count() << ".jpg";
                     imwrite(ss.str(), original_frame);
                 }
                 else if (k == 'p')

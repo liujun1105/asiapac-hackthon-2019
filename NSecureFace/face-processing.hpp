@@ -42,7 +42,8 @@ namespace nsecureface
         
         void RecognizeFromImages(std::string dir_path);
     private:
-        void PerformFaceAlignment(int& label, int& distance, std::Rect face_rect);
+        void CreateDirectories();
+        void PerformFaceAlignment(int& label, double& distance, cv::Mat& frame, cv::Rect& face_rect);
         
         void TrainRecognizer();
         
