@@ -15,6 +15,7 @@ namespace nsecureface
         std::string dnn_network;
         std::string dnn_weights;
         std::string face_model;
+        std:;string facemark_detector;
     };
 }
 

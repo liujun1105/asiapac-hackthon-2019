@@ -42,7 +42,7 @@ namespace nsecureface
         
         void RecognizeFromImages(std::string dir_path);
     private:
-        
+        void PerformFaceAlignment(int& label, int& distance, std::Rect face_rect);
         
         void TrainRecognizer();
         
@@ -54,6 +54,7 @@ namespace nsecureface
         
         std::vector<cv::Mat> images;
         std::vector<int> labels;
+        cv::Ptr<cv::face::Facemark> facemark_detector;
         
         cv::Ptr<cv::face::FaceRecognizer> recognizer;
         std::unordered_map<std::string, int> label_map;
@@ -62,6 +63,8 @@ namespace nsecureface
         bool recognizer_initialized;
         bool embedder_initialized;
         bool detector_initialized;
+
+        bool pause;
     };
 }
 #endif /* face_processing_hpp */

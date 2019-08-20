@@ -24,6 +24,7 @@
 #include <opencv2/ml.hpp>
 #include "opencv2/objdetect.hpp"
 #include <sstream>
+#include <chrono>
 
 using json = nlohmann::json;
 
@@ -33,12 +34,17 @@ using namespace cv::face;
 using namespace cv::ml;
 using namespace cppfs;
 using namespace std;
+using namespace std::chrono;
 
 namespace nsecureface
 {
     FaceTool::FaceTool()
     {
         this->label_count = 1;
+        this->embedder_initialized = false;
+        this->detector_initialized = false;
+        this->recognizer_initialized = false;
+        this->pause = true;
     }
     
     void FaceTool::Debug()
@@ -51,6 +57,7 @@ namespace nsecureface
         printf("%-30s: %s\n", "Labels", config.face_labels.c_str());
         printf("%-30s: %s\n", "DNN Network", config.dnn_network.c_str());
         printf("%-30s: %s\n", "DNN Weights", config.dnn_weights.c_str());
+        printf("%-30s: %s\n", "Facemark Model", config.facemark_detector.c_str());
         printf("%-30s: %s\n", "Detector Directory", config.face_model.c_str());
         printf("%s\n", std::string(110, '#').c_str());
     }
@@ -66,14 +73,14 @@ namespace nsecureface
             config_reader.close();
             
             
-            config.device = json_config["device"];
-            config.face_images = json_config["face_images"];
-            config.face_embeddings = json_config["face_embeddings"];
-            config.face_recognizer = json_config["face_recognizer"];
-            config.face_labels = json_config["face_labels"];
-            config.face_model = json_config["face_model"];
-            config.dnn_network = json_config["face_detector"]["network"];
-            config.dnn_weights = json_config["face_detector"]["weights"];
+            config.device = json_config["device"].get<int>();
+            config.face_images = json_config["face_images"].get<string>();
+            config.face_embeddings = json_config["face_embeddings"].get<string>();
+            config.face_recognizer = json_config["face_recognizer"].get<string>();
+            config.face_labels = json_config["face_labels"].get<string>();
+            config.face_model = json_config["face_model"].get<string>();
+            config.dnn_network = json_config["face_detector"]["network"].get<string>();
+            config.dnn_weights = json_config["face_detector"]["weights"].get<string>();
         }
         else {
             printf("[ERROR] failed to open configuration file config.json");
@@ -110,8 +117,10 @@ namespace nsecureface
             cout << "start loading caffe detector" << endl;
             printf("reading network file from %s\n", config.dnn_network.c_str());
             printf("reading weights file from %s\n", config.dnn_weights.c_str());
-            detector = readNetFromCaffe(config.dnn_network, config.dnn_weights);
+            this->detector = readNetFromCaffe(config.dnn_network, config.dnn_weights);
             this->detector_initialized = true;
+            this->facemark_detector = FacemarkLBF::create();
+            this->facemark_detector->loadModel(config.facemark_detector);
             cout << "complete loading caffe detector" << endl;
         }
     }
@@ -121,7 +130,7 @@ namespace nsecureface
         if (!this->embedder_initialized)
         {
             cout << "loading embedder" << endl;
-            embedder = readNetFromTorch(config.face_model);
+            this->embedder = readNetFromTorch(config.face_model);
             this->embedder_initialized = true;
             cout << "complete loading embedder" << endl;
         }
@@ -243,12 +252,60 @@ namespace nsecureface
             fprintf(stderr, "initialization status => recognizer (%d), embedded (%d), detector (%d)", IsRecognizerInitialized(), IsEmbedderInitialized(), IsDetectorInitialized());
         }
     }
+
+    void FaceTool::PerformFaceAlignment(int& label, int& distance, Rect face_rect)
+    {
+    	vector< vector<Point2f> > landmarks;
+    	vector<Rect> faces = { face_rect };
+    	bool success = this->facemark_detector->fit(frame, faces, landmarks);
+    	if (success)
+    	{
+    		for (auto landmark : landmarks)
+    		{
+    			Mat output = frame.clone();
+
+    			Point2f left_eye((landmark[39].x - landmark[36].x) / 2.0 + landmark[36].x, (landmark[39].y - landmark[36].y) / 2.0 + landmark[36].y);
+    			Point2f right_eye((landmark[45].x - landmark[42].x) / 2.0 + landmark[42].x, (landmark[45].y - landmark[42].y) / 2.0 + landmark[42].y);
+
+    			Point2f eye_center((left_eye.x + right_eye.x)/2.0F, (left_eye.y + right_eye.y)/2.0F);
+    			double dy = (right_eye.y - left_eye.y);
+    			double dx = (right_eye.x - left_eye.x);
+    			double len - sqrt(dx * dx + dy * dy);
+
+    			float angle = atan2(dy, dx) * 180.0/CV_PI;
+
+    			const double DESIRED_LEFT_EYE_X = 0.16;
+    			const double DESIRED_RIGHT_EYE_X = (1.0F - 0.16);
+
+    			const int DESIRED_FACE_WIDTH = face_rect.width;
+    			const int DESIRED_FACE_HEIGHT = face_rect.height;
+
+    			double desired_length = (DESIRED_RIGHT_EYE_X - 0.16);
+    			double scale = desired_length * DESIRED_FACE_WIDTH / len;
+
+    			Mat r = getRotationMatrix2D(eye_center, angle, scale);
+    			double e = DESIRED_FACE_WIDTH * 0.5f - eye_center.x;
+    			double ey = DESIRED_FACE_HEIGHT * 0.14 - eye_center.y;
+
+    			r.at<double>(0, 2) += ex;
+    			r.at<double>(1, 2) += ey;
+
+    			Mat warped = Mat(DESIRED_FACE_HEIGHT, DESIRED_FACE_WIDTH, CV_8U, Scalar(128));
+
+    			warpAffine(output, warped, r, warped.size());
+
+    			cvColor(warped, warped, COLOR_RGB2GRAY);    			
+    			this->recognizer->predict(warped, label, confidence);    			
+    		}
+    	}
+    }
     
     void FaceTool::LaunchTestClient()
     {
         VideoCapture capture(config.device);
         if (capture.isOpened())
         {
+        	stringstream ss;
             Mat frame;
             namedWindow("Face Recognition", WINDOW_NORMAL);
             while (true)
@@ -260,6 +317,11 @@ namespace nsecureface
                     break;
                 }
                 
+                Mat original_frame = frame.clone();
+
+                ss << "Paused = " << pause;
+                putText(frame, ss.str(), cv::Point(10, 10), cv::FONT_HERSHEY_SIMPLEX, 0.45, Scalar(0, 0, 255), 2);
+
                 Mat blobImg = blobFromImage(frame, 1.0, Size(300, 300), Scalar(104.0, 177.0, 123.0), false, false);
                 
                 detector.setInput(blobImg);
@@ -278,6 +340,10 @@ namespace nsecureface
                         int y2 = static_cast<int>(detectionMat.at<float>(i, 6) * frame.rows);
                         
                         Rect face_rect(cv::Point(x1, y1), cv::Point(x2, y2));
+
+                        PerformFaceAlignment(face_rect);
+
+
                         Mat ROI = frame.clone();
                         if (face_rect.x >= 0 && face_rect.y >= 0 && face_rect.y + face_rect.height < ROI.rows && face_rect.x + face_rect.width < ROI.cols)
                         {
@@ -290,9 +356,9 @@ namespace nsecureface
                         cvtColor(ROI, ROI, COLOR_RGB2GRAY);
                         this->recognizer->predict(ROI, label, confidence);
                         
-                        stringstream ss;
                         
-                        if (label > 0 && confidence < 20) {
+                        ss.clear();
+                        if (label > 0 && confidence < 20) {                            
                             printf("person index = %d, label = %d, confidence level = %f\n", i, label, confidence);
                             int y = y1 - 10 > 10 ?  y1 - 10 : y1 + 10;
                             rectangle(frame, cv::Point(x1, y1), cv::Point(x2, y2), cv::Scalar(0, 0, 255));
@@ -303,6 +369,13 @@ namespace nsecureface
                             rectangle(frame, cv::Point(x1, y1), cv::Point(x2, y2), Scalar(0, 0, 255));
                             ss << "Person#" << i << " " << "Unknown";
                             putText(frame, ss.str(), cv::Point(x1, y), cv::FONT_HERSHEY_SIMPLEX, 0.45, Scalar(0, 0, 255), 2);
+
+                            if (!pause)
+                            {
+                                milliseconds ms = duration_cast<milliseconds>(system_clock::now().time_since_epoch());
+                                ss << "face-unknown\\unknown_" << ms.count() << ".jpg";
+                                imwrite(ss.str(), original_frame);
+                            }
                         }
                     }
                 }
@@ -311,6 +384,16 @@ namespace nsecureface
                 
                 int k = waitKey(27);
                 if (k == 27) break;
+                else if (k == 'c' && !pause)
+                {
+                    milliseconds ms = duration_cast<milliseconds>(system_clock::now().time_since_epoch());
+                    ss << "face-negative\\negative_" << ms.count() << ".jpg";
+                    imwrite(ss.str(), original_frame);
+                }
+                else if (k == 'p')
+                {
+                    pause = !pause;
+                }
             }
             frame.release();
             capture.release();
