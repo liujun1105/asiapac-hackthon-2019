@@ -10,23 +10,22 @@
 #include <fstream>
 #include <string>
 #include <stdio.h>
+#include <sstream>
+#include <chrono>
 
 #include <opencv2/dnn/dnn.hpp>
 #include <opencv2/imgproc.hpp>
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
-#include <opencv2/face.hpp>
-#include "json.hpp"
+#include <opencv2/face/facemarkLBF.hpp>
+#include <opencv2/ml.hpp>
+#include <opencv2/objdetect.hpp>
+
+
 #include "cppfs/fs.h"
 #include "cppfs/FileHandle.h"
 #include "cppfs/FilePath.h"
-#include <opencv2/face/facemarkLBF.hpp>
-#include <opencv2/ml.hpp>
-#include "opencv2/objdetect.hpp"
-#include <sstream>
-#include <chrono>
 
-using json = nlohmann::json;
 
 using namespace cv;
 using namespace cv::dnn;
@@ -38,58 +37,16 @@ using namespace std::chrono;
 
 namespace nsecureface
 {
-    FaceTool::FaceTool()
+    FaceTool::FaceTool(NSecureFaceConfig& config)
     {
+        this->config = config;
         this->label_count = 1;
         this->embedder_initialized = false;
         this->detector_initialized = false;
         this->recognizer_initialized = false;
         this->pause = true;
-    }
-    
-    void FaceTool::Debug()
-    {
-        printf("%s\n", std::string(110, '#').c_str());
-        printf("%-30s: %d\n", "Device", config.device);
-        printf("%-30s: %s\n", "Face Images", config.face_images.c_str());
-        printf("%-30s: %s\n", "Embeddings", config.face_embeddings.c_str());
-        printf("%-30s: %s\n", "Recognizer", config.face_recognizer.c_str());
-        printf("%-30s: %s\n", "Labels", config.face_labels.c_str());
-        printf("%-30s: %s\n", "DNN Network", config.dnn_network.c_str());
-        printf("%-30s: %s\n", "DNN Weights", config.dnn_weights.c_str());
-        printf("%-30s: %s\n", "Facemark Model", config.facemark_detector.c_str());
-        printf("%-30s: %s\n", "Detector Directory", config.face_model.c_str());
-        printf("%s\n", std::string(110, '#').c_str());
-    }
-    
-    void FaceTool::LoadJsonConfig(std::string config_file_path)
-    {
-        std::ifstream config_reader(config_file_path);
-        json json_config;
         
-        if (config_reader.is_open())
-        {
-            config_reader >> json_config;
-            config_reader.close();
-            
-            
-            config.device = json_config["device"].get<int>();
-            config.face_images = json_config["face_images"].get<string>();
-            config.face_embeddings = json_config["face_embeddings"].get<string>();
-            config.face_recognizer = json_config["face_recognizer"].get<string>();
-            config.face_labels = json_config["face_labels"].get<string>();
-            config.face_model = json_config["face_model"].get<string>();
-            config.dnn_network = json_config["face_detector"]["network"].get<string>();
-            config.dnn_weights = json_config["face_detector"]["weights"].get<string>();
-            config.facemark_detector = json_config["facemark_detector"].get<string>();
-            config.face_capture_unknown = json_config["face_capture"]["face_unknown"].get<string>();
-            config.face_capture_negative = json_config["face_capture"]["face_negative"].get<string>();
-
-            CreateDirectories();
-        }
-        else {
-            printf("[ERROR] failed to open configuration file config.json");
-        }
+        CreateDirectories();
     }
     
     void FaceTool::CreateDirectories()
@@ -586,5 +543,57 @@ namespace nsecureface
         {
             fprintf(stderr, "initialization status => recognizer (%d), embedded (%d), detector (%d)", IsRecognizerInitialized(), IsEmbedderInitialized(), IsDetectorInitialized());
         }
+    }
+    
+    std::string FaceTool::RecognizeFromImage(cv::Mat image)
+    {
+        string identity = "unknown";
+        
+        if (IsRecognizerInitialized() && IsDetectorInitialized())
+        {
+            try {
+                Mat blobImg = blobFromImage(image, 1.0, Size(300, 300), Scalar(104.0, 177.0, 123.0), false, false);
+                
+                detector.setInput(blobImg);
+                Mat detection = detector.forward();
+                
+                Mat detectionMat(detection.size[2], detection.size[3], CV_32F, detection.ptr<float>());
+                for(int i = 0; i < detectionMat.rows; i++)
+                {
+                    float confidence = detectionMat.at<float>(i, 2);
+                    
+                    if(confidence > 0.7)
+                    {
+                        int x1 = static_cast<int>(detectionMat.at<float>(i, 3) * image.cols);
+                        int y1 = static_cast<int>(detectionMat.at<float>(i, 4) * image.rows);
+                        int x2 = static_cast<int>(detectionMat.at<float>(i, 5) * image.cols);
+                        int y2 = static_cast<int>(detectionMat.at<float>(i, 6) * image.rows);
+                        
+                        Rect face_rect(cv::Point(x1, y1), cv::Point(x2, y2));
+                        Mat ROI = image.clone();
+                        if (face_rect.x >= 0 && face_rect.y >= 0 && face_rect.y + face_rect.height < ROI.rows && face_rect.x + face_rect.width < ROI.cols)
+                        {
+                            ROI.release();
+                            ROI = Mat(image, face_rect);
+                        }
+                        
+                        int label = -1;
+                        double distance = 0.0;
+                        cvtColor(ROI, ROI, COLOR_RGB2GRAY);
+                        this->recognizer->predict(ROI, label, distance);
+                        
+                        if (distance < 6) identity = label;
+                    }
+                }
+            } catch (const std::exception& e) {
+                fprintf(stderr, "catch an exception: %s\n", e.what());
+            } catch (const std::runtime_error& e) {
+                fprintf(stderr, "catch an runtime error: %s\n", e.what());
+            }
+        } else {
+            fprintf(stderr, "initialization status => recognizer (%d), embedded (%d), detector (%d)", IsRecognizerInitialized(), IsEmbedderInitialized(), IsDetectorInitialized());
+        }
+        
+        return identity;
     }
 }

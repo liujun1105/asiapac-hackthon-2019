@@ -7,7 +7,7 @@ namespace nsecureface
 {
     struct NSecureFaceConfig
     {       
-        int device;
+        int         device;
         std::string face_images;
         std::string face_embeddings;
         std::string face_recognizer;
@@ -18,6 +18,9 @@ namespace nsecureface
         std::string facemark_detector;
         std::string face_capture_unknown;
         std::string face_capture_negative;
+        std::string face_recognition_service;
+        int         face_recognition_service_port;
+        std::string image_server_url;
     };
 }
 
