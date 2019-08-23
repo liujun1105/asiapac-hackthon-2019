@@ -4,6 +4,10 @@ if (POLICY CMP0048)
     cmake_policy (SET CMP0048 NEW)
 endif ()
 
+if (POLICY CMP0077)
+    cmake_policy (SET CMP0077 NEW)
+endif ()
+
 set(CMAKE_PROJECT_VERSION 0.1.1)
 
 project(NSecureFace 
@@ -41,6 +45,7 @@ if(${OpenCV_FOUND})
 	set(NSECURE_FACE_SOURCES
 		nsecureface-service.cpp
 		face-processing.cpp
+		client.cpp
 	)
 	set(NSECURE_FACE_RESOURCES config.json)
 

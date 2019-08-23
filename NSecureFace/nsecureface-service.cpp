@@ -49,11 +49,7 @@ void LaunchImageServer(const char *url, httplib::Client client)
         if (sz > 0)
         {
             printf("[server] # bytes received => %d\n", static_cast<int>(sz));
-            
-//            string body;
-//            httplib::Headers headers = {
-//                {"Accept-Encoding", "gzip, deflate"}
-//            }
+
             httplib::Params params;
             params.emplace("image", string(buf));
             params.emplace("length", std::to_string(sz));
@@ -116,7 +112,6 @@ void LaunchFaceRecognitionService(NSecureFaceConfig config)
                 printf("[server] vector size => %d\n", static_cast<int>(data.size()));
                 img_decode = cv::imdecode(data, 1);
                 
-                cv::imwrite("1.png", img_decode);
                 identity = face_tool.RecognizeFromImage(img_decode);
             }
             res.set_content(identity.c_str(), identity.length(), "text/plain");
@@ -172,6 +167,11 @@ int main(int argc, char** argv)
         FaceTool face_tool(config);
         face_tool.StartRecognizeService();
         face_tool.LaunchTestClient();
+    }
+    else if (app_type == "window")
+    {
+        NSecureFaceClient client(config);
+        client.BlockAccess();
     }
     
     return 0;
