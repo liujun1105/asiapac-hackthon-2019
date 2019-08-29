@@ -3,24 +3,23 @@ import json
 import os
 import argparse
 
+
 def upload_images(image_folder, collection_id, create_collection):
 	client = boto3.client('rekognition')
 
-
 	if create_collection:
 		response = client.create_collection(CollectionId=collection_id)
-		print(json.dumps(response), sort_keys=True, indent=4)
-
+		print(json.dumps(response, sort_keys=True, indent=4))
 
 	if not os.path.exists(image_folder):
-		print("cannot find folder/file %s" % (image_folder))
+		print("cannot find folder/file %s" % image_folder)
 		exit(0)
 
 	for (dir_path, dir_names, file_names) in os.walk(image_folder):
 		for file in file_names:
 			filename, file_extension = os.path.splitext(file)
 			if file_extension in ['.jpg', '.png', '.jpeg']:
-				file_path = os.path.join(dir_path, filename)
+				file_path = os.path.join(dir_path, file)
 				print("uploading file %s" % file_path)
 				
 				with open(file_path, 'rb') as image_reader:					
@@ -29,7 +28,8 @@ def upload_images(image_folder, collection_id, create_collection):
 						ExternalImageId=os.path.basename(os.path.normpath(dir_path)),
 						Image={'Bytes': image_reader.read()}
 					)	
-					print(json.dumps(response), sort_keys=True, indent=4)
+					print(json.dumps(response, sort_keys=True, indent=4))
+
 
 if __name__ == '__main__':
 	parser = argparse.ArgumentParser(description='Uploading Images to AWS')
