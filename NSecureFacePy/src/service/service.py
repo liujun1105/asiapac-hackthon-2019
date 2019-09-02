@@ -1,5 +1,6 @@
 import os
 from flask import Flask, request, render_template
+from . import db
 
 
 def create_app(instance_path):
@@ -7,15 +8,14 @@ def create_app(instance_path):
 
     app.config.from_pyfile('config.py', silent=False)
 
+    db.init_app(app)
+
     try:
         print(app.instance_path)
         if not os.path.exists(app.instance_path):
             os.makedirs(app.instance_path)
     except OSError as e:
         print(e)
-
-    from . import db
-    db.init_app(app)
 
     @app.route('/status')
     def status():
@@ -74,8 +74,6 @@ def create_app(instance_path):
             return render_template('error.html', error_message="failed to get count - %s" % e)
         finally:
             db.close_db()
-
-        return {'count': 0}
 
     @app.route('/delete/<client_name>', methods=['DELETE'])
     def delete_by_client(client_name):

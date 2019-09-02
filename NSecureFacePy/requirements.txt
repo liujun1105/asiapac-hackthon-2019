@@ -1,6 +1,6 @@
 boto3
 Flask
-python-dotenv=0.10.3
+python-dotenv==0.10.3
 opencv-python
 numpy
 imutils
