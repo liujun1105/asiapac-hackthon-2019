@@ -22,8 +22,8 @@ def register(client_name, username, machine_name):
         db.execute("INSERT INTO ClientAuthInfo VALUES ('%s', '%s', '%s')" % (client_name, username, machine_name))
         db.commit()
     except Exception as e:
-        print(e)
         db.rollback()
+        raise e
 
 
 def deregister(client_name, username=None, machine_name=None):
@@ -50,8 +50,8 @@ def deregister(client_name, username=None, machine_name=None):
             )
         db.commit()
     except Exception as e:
-        print(e)
         db.rollback()
+        raise e
 
 
 def list_all(client_name, username=None, machine_name=None):
@@ -94,9 +94,60 @@ def list_all(client_name, username=None, machine_name=None):
         return columns, results
 
     except Exception as e:
-        print(e)
+        raise e
 
     return [], []
+
+
+def count(client_name, username, machine_name):
+    db = get_db()
+    try:
+        sql = "SELECT count(*) FROM ClientAuthInfo WHERE client_name = ? AND username = ? AND machine_name = ?"
+        params = (client_name, username, machine_name,)
+        rows = db.execute(sql, params)
+        return rows.fetchone()[0]
+    except Exception as e:
+        raise e
+
+    return -1
+
+
+def remove_by_client(client_name):
+    """
+    remove records from database that matching the given client_name
+    """
+    db = get_db()
+    try:
+        pass
+        sql = "DELETE FROM ClientAuthInfo WHERE client_name = ?"
+        params = (client_name,)
+        db.execute(sql, params)
+        db.commit()
+        return True
+    except Exception as e:
+        db.rollback()
+        raise e
+
+    return False
+
+
+def remove(client_name, username, machine_name):
+    """
+    remove records from database that matching the given client_name, username, machine_name
+    """
+    db = get_db()
+    try:
+        pass
+        sql = "DELETE FROM ClientAuthInfo WHERE client_name = ? AND username = ? AND machine_name = ?"
+        params = (client_name, username, machine_name,)
+        db.execute(sql, params)
+        db.commit()
+        return True
+    except Exception as e:
+        db.rollback()
+        raise e
+
+    return False
 
 
 def close_db(e=None):

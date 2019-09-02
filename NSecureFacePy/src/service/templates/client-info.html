@@ -15,13 +15,15 @@
             </tr>
         </thead>
         <tbody>
-            <tr>
+
             {% for client in clients['clients'] %}
+            <tr>
                 <td>{{ client['client_name'] }}</td>
                 <td>{{ client['username'] }}</td>
                 <td>{{ client['machine_name'] }}</td>
-            {% endfor %}
             </tr>
+            {% endfor %}
+
         </tbody>
     </table>
 {% endblock %}
