@@ -5,3 +5,5 @@ opencv-python
 numpy
 imutils
 dlib
+asyncio==3.4.3
+aiohttp=3.5.4

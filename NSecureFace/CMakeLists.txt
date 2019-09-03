@@ -40,6 +40,7 @@ if(${OpenCV_FOUND})
 		face-processing.hpp
 		common.hpp
         client.hpp
+        socket.hpp
 	)
 
 	set(NSECURE_FACE_SOURCES

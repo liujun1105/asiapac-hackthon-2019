@@ -11,6 +11,7 @@
 #include "common.hpp"
 
 #include "httplib.h"
+#include "socket.hpp"
 
 using namespace nsecureface;
 using namespace std;
@@ -106,7 +107,7 @@ void LaunchFaceRecognitionService(NSecureFaceConfig config)
                 string buf = req.get_param_value("image");
                 int sz = stoi(req.get_param_value("length"));
 //                string img_str(buf, sz);
-                printf("[server] encoded string size => %d\n", buf.length());
+                printf("[server] encoded string size => %lu\n", buf.length());
                 
                 std::vector<uchar> data(buf.begin(), buf.end());
                 printf("[server] vector size => %d\n", static_cast<int>(data.size()));
@@ -172,6 +173,17 @@ int main(int argc, char** argv)
     {
         NSecureFaceClient client(config);
         client.BlockAccess();
+    }
+    else if (app_type == "socket")
+    {
+        using namespace nsecureface::socket;
+        StreamingClient sc;
+        bool status = sc.Init("tcp://localhost:5001");
+        cout << "socket init status: " << status << endl;
+        string s = "121";
+        void* msg = &s;
+        sc.Send(msg, s.length());
+        sc.Close();
     }
     
     return 0;
