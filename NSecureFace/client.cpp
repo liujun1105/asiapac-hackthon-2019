@@ -43,7 +43,7 @@ using namespace cppfs;
 namespace nsecureface
 {
 #ifdef _WIN32
-    LRESULT CALLBACK WindowProc(HWND hwnd, UNIT uMsg, WPARAM wParam, LPARAM lParam)
+    LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
     {
         switch (uMsg)
         {
@@ -66,14 +66,14 @@ namespace nsecureface
 
                 auto rect = GetClientRect(hwnd, &r);
 
-                FillRect(hdc, &ps.rcPaint, (HBRUSH)(COLOR_WINDO + 1));
+                FillRect(hdc, &ps.rcPaint, (HBRUSH)(COLOR_WINDOW + 1));
 
                 // DrawText(hdc, "haha", rect, NULL, DT_CENTER | DT_NOCLIP | DT_SINGLELINE | DT_VCENTER);
 
                 EndPaint(hwnd, &ps);
             }
             return 0;
-            case WM_CLOST:
+            case WM_CLOSE:
                 DestroyWindow(hwnd);
             default:
                 return DefWindowProc(hwnd, uMsg, wParam, lParam);
@@ -484,7 +484,7 @@ namespace nsecureface
         WNDCLASS wc = {};
         wc.hInstance = GetModuleHandle("NSecureFace");
         wc.lpszClassName = CLASS_NAME;
-        wclpfnWndProc = nsecureface::WindowProc;
+        wc.lpfnWndProc = nsecureface::WindowProc;
 
         RegisterClass(&wc);
 
@@ -498,7 +498,7 @@ namespace nsecureface
             win_style,
 
             // Size and position
-            CW_USEDEFAULT, CW_USEDFAULT, GetSystemMetrics(SM_CXSCREEN), GetSystemMetrics(SM_CYSREEN),
+            CW_USEDEFAULT, CW_USEDEFAULT, GetSystemMetrics(SM_CXSCREEN), GetSystemMetrics(SM_CYSCREEN),
 
             NULL,           // Parent
             NULL,           // Menu
@@ -512,7 +512,7 @@ namespace nsecureface
 
         SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOACTIVATE | SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
 
-        ShowWindow(hmwd, SW_SHOW);
+        ShowWindow(hwnd, SW_SHOW);
 
         MSG msg = { };
         while (GetMessage(&msg, NULL, 0, 0))
