@@ -69,9 +69,9 @@ def create_app(instance_path):
 
             count = db.count(client_name, username, machine_name)
 
-            return {'count': count}
+            return str(count)
         except Exception as e:
-            return render_template('error.html', error_message="failed to get count - %s" % e)
+            return "0"
         finally:
             db.close_db()
 
