@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Client Application Registration</title>
+
+    <link rel="stylesheet" href="https://unpkg.com/purecss@1.0.1/build/pure-min.css" integrity="sha384-oAOxQR6DkCoMliIh8yFnu25d7Eq/PHS21PClpwjOTeU2jRSq11vu66rf90/cZr47" crossorigin="anonymous">
+</head>
+<body>
+
+<div style="margin: 25px 50px">
+<form class="pure-form pure-form-stacked" action="/register" method="POST">
+    <fieldset>
+        <legend>Client Registration</legend>
+
+        <label>{{ form.client_name.label }}</label>
+        <input type="text" id="client_name" name="client_name" placeholder="input a client name ... "/>
+        <span class="pure-form-message"></span>
+
+        <label>{{ form.machine_name.label }}</label>
+        <input type="text" id="machine_name" name="machine_name" placeholder="input a machine name ..."/>
+        <span class="pure-form-message"></span>
+
+        <label>{{ form.username.label }}</label>
+        <input type="text" id="username" name="username" placeholder="input a username ..." />
+        <span class="pure-form-message"></span>
+
+        <button type="submit" class="pure-button pure-button-primary">Register</button>
+    </fieldset>
+</form>
+</div>
+</body>
+</html>

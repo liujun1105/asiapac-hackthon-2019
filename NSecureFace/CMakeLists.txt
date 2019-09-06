@@ -70,6 +70,7 @@ if(${OpenCV_FOUND})
 	    deps/cppfs-1.3.0/source/cppfs/include
 	    deps/nng-1.1.1/src
         deps/cpp-httplib-0.2.1
+		deps/cpp-base64/include
 	)
 
 	add_executable(NSecureFaceService 
@@ -79,9 +80,9 @@ if(${OpenCV_FOUND})
 	)
 
 	if(${AWSSDK_FOUND})
-		target_link_libraries(NSecureFaceService ${OpenCV_LIBRARIES} cppfs nng ${AWSSDK_LIB_DIR}/*.lib)
+		target_link_libraries(NSecureFaceService ${OpenCV_LIBRARIES} cppfs nng ${AWSSDK_LIB_DIR}/*.lib base64)
 	else()
-		target_link_libraries(NSecureFaceService ${OpenCV_LIBRARIES} cppfs nng)
+		target_link_libraries(NSecureFaceService ${OpenCV_LIBRARIES} cppfs nng base64)
 	endif()
 
 else()

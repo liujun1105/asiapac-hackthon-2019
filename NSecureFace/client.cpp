@@ -45,6 +45,8 @@
 //#include <aws/core/utils/memory/stl/AWSString.h>
 #endif
 
+#include <base64.h>
+
 using namespace cv;
 using namespace cv::dnn;
 using namespace cv::face;
@@ -382,7 +384,6 @@ namespace nsecureface
 				
 				if (detectionMat.rows == 0) has_permission = 0;
 				
-				bool more_than_one_faces = detectionMat.rows > 1;
 				int authorized_face_idx = -1;
 
                 for(int i = 0; i < detectionMat.rows; i++)
@@ -423,18 +424,26 @@ namespace nsecureface
 						if (aws_only || confidence == 0 || (confidence < 90 && confidence > 80))
 						{
 							vector<uchar> buf;
-							imshow("aws_image", ROIDemo);
-							imencode(".jpg", ROIDemo, buf);
-							uchar* enc_msg = new uchar[buf.size()];
+							
+							Mat ROI = frame.clone();
+							if (face_rect.x >= 0 && face_rect.y >= 0 && face_rect.y + face_rect.height < ROI.rows && face_rect.x + face_rect.width < ROI.cols)
+							{
+								ROI.release();
+								ROI = Mat(frame, face_rect);
+							}
 
+							imencode(".jpg", ROI, buf);
+							uchar* enc_msg = new uchar[buf.size()];
+							for (int i = 0; i < buf.size(); i++) enc_msg[i] = buf[i];
+							
 							Aws::Rekognition::Model::SearchFacesByImageRequest search_request;
-							search_request.SetCollectionId("liujunju-face-collection");
+							search_request.SetCollectionId("ctrl-alt-elite");
 							Aws::Rekognition::Model::Image face_image;
 							Aws::Utils::ByteBuffer awsbuffer(enc_msg, buf.size());
 
 							face_image.SetBytes(awsbuffer);
 							search_request.SetImage(face_image);
-							search_request.SetMaxFaces(2);
+							search_request.SetMaxFaces(1);
 							printf("search image using aws rekognition service\n");
 							auto search_result = rekoclient.SearchFacesByImage(search_request);
 							auto image_result = search_result.GetResult();
@@ -450,6 +459,7 @@ namespace nsecureface
 							{
 								aws_confidence = face_matches[0].GetFace().GetConfidence();
 								confidence = confidence > aws_confidence ? confidence : aws_confidence;
+								label = this->label_map[face_matches[0].GetFace().GetExternalImageId().c_str()];
 							}
 							else 
 							{
@@ -457,6 +467,7 @@ namespace nsecureface
 							}							 
 						}
 #endif 
+
                         ss.str("");
                         ss.clear();
                         if (label > 0 && confidence > 90) {
@@ -541,10 +552,18 @@ namespace nsecureface
 							int y2 = static_cast<int>(detectionMat.at<float>(i, 6) * frame.rows);
 
 							Rect face_rect(cv::Point(x1, y1), cv::Point(x2, y2));
+							unknown_face_stream << "Unknown#" << i;
 							
-							namedWindow(unknown_face_stream.str(), WINDOW_NORMAL);
-							resizeWindow(unknown_face_stream.str(), 160, 240);
+							Mat suspicious_person = frame.clone();
+							if (face_rect.x >= 0 && face_rect.y >= 0 && face_rect.y + face_rect.height < suspicious_person.rows && face_rect.x + face_rect.width < suspicious_person.cols)
+							{
+								suspicious_person.release();
+								suspicious_person = Mat(frame, face_rect);
+							}
 
+							namedWindow(unknown_face_stream.str(), WINDOW_KEEPRATIO);
+							resizeWindow(unknown_face_stream.str(), 160, 240);
+							imshow(unknown_face_stream.str(), suspicious_person);
 						}
 					}
 				}
@@ -559,8 +578,7 @@ namespace nsecureface
 						destroyWindow(unknown_face_stream.str());
 					}
 				}
-				authorized_face_idx = -1;
-
+				
 				printf("has permission -> %d\n", has_permission);
 				if (enable_protectection)
 				{
@@ -602,6 +620,8 @@ namespace nsecureface
 				{
 					aws_only = !aws_only;
 				}
+
+				authorized_face_idx = -1;
             }
             frame.release();
             capture.release();

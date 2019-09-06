@@ -14,3 +14,6 @@ message(STATUS "Include nng-1.1.1 via add_subdirectory.")
 
 #add_subdirectory(nlohmann-json-3.7.0)
 #add_subdirectory(cpp-http-0.2.1)
+
+add_subdirectory(cpp-base64)
+message(STATUS "Include cpp-base64 via add_subdirectory.")

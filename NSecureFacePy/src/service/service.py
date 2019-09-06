@@ -1,5 +1,7 @@
 import os
 from flask import Flask, request, render_template
+
+from service.forms.RegForm import RegForm
 from . import db
 
 
@@ -21,17 +23,19 @@ def create_app(instance_path):
     def status():
         return "connected"
 
+    @app.route('/register-client', methods=['GET'])
+    def register_client():
+        form = RegForm()
+        return render_template('registration.html', form=form)
+
     @app.route('/register', methods=['POST'])
     def register():
         try:
-            json_data = request.get_json()
-            print(json_data)
-            client_name = json_data['client_name']
-            machine_name = json_data['machine_name']
-            username = json_data['username']
+            client_name = request.form.get('client_name')
+            machine_name = request.form.get('machine_name')
+            username = request.form.get('username')
 
             db.register(client_name, username, machine_name)
-
         except Exception as e:
             return render_template('error.html', error_message="failed to register - %s" % e)
         finally:
@@ -84,6 +88,20 @@ def create_app(instance_path):
             return render_template('error.html', error_message="failed to delete by client %s - %s" % (client_name, e))
 
         return render_template('status.html', status='failed to delete {}'.format(client_name))
+
+    @app.route('/delete', methods=['POST'])
+    def delete_by_submit():
+        try:
+            print(request.form)
+            client_name = request.form.get('client_name')
+            machine_name = request.form.get('machine_name')
+            username = request.form.get('username')
+
+            db.remove(client_name, username, machine_name)
+        except Exception as e:
+            return render_template('error.html', error_message="failed to delete - %s" % e)
+        finally:
+            db.close_db()
 
     @app.route('/delete/<client_name>/<username>/<machine_name>', methods=['DELETE'])
     def delete(client_name, username, machine_name):

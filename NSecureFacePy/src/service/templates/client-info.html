@@ -1,17 +1,21 @@
 <html>
 <head>
-  <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='table.css') }}">
+    <title>Registered Client Info</title>
+
+    <link rel="stylesheet" href="https://unpkg.com/purecss@1.0.1/build/pure-min.css" integrity="sha384-oAOxQR6DkCoMliIh8yFnu25d7Eq/PHS21PClpwjOTeU2jRSq11vu66rf90/cZr47" crossorigin="anonymous">
 </head>
 
 <body>
+<form class="pure-form pure-form-stacked" action="/delete" method="POST">
 {% block content %}
-    <table>
+    <table class="pure-table pure-table-horizontal">
         <caption>Registered Client Info</caption>
         <thead>
             <tr>
             {% for column in clients['columns'] %}
                 <th scope="col">{{ column }}</th>
             {% endfor %}
+<!--                <th scope="col">Delete</th>-->
             </tr>
         </thead>
         <tbody>
@@ -21,11 +25,17 @@
                 <td>{{ client['client_name'] }}</td>
                 <td>{{ client['username'] }}</td>
                 <td>{{ client['machine_name'] }}</td>
+<!--                <td align="center">-->
+<!--                    <input type="checkbox" name="ckb_del"/>-->
+<!--                </td>-->
             </tr>
             {% endfor %}
-
         </tbody>
     </table>
+<!--    <div align="left" style="margin: 1em ">-->
+<!--        <button type="submit" class="pure-button pure-button-primary">Delete</button>-->
+<!--    </div>-->
 {% endblock %}
+</form>
 </body>
 </html>
