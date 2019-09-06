@@ -12,13 +12,12 @@
 #include <string>
 #include <vector>
 #include <unordered_map>
-
+#include <memory>
 
 #include <opencv2/opencv.hpp>
 #include <opencv2/face.hpp>
 
 #include "nsecureface.h"
-
 
 namespace nsecureface
 {
@@ -27,6 +26,9 @@ namespace nsecureface
     private:
         int label_count;
         bool pause;
+		bool enable_protectection;
+		bool enable_authentication;
+		bool aws_only;
         
         NSecureFaceConfig config;
         

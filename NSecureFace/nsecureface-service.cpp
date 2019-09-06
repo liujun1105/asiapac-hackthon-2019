@@ -12,6 +12,11 @@
 
 #include "httplib.h"
 #include "socket.hpp"
+#include "image-sender.hpp"
+
+#ifdef AWS_FACE_RECOGNITION
+#include <aws/core/Aws.h>
+#endif
 
 using namespace nsecureface;
 using namespace std;
@@ -107,7 +112,7 @@ void LaunchFaceRecognitionService(NSecureFaceConfig config)
                 string buf = req.get_param_value("image");
                 int sz = stoi(req.get_param_value("length"));
 //                string img_str(buf, sz);
-                printf("[server] encoded string size => %lu\n", buf.length());
+                printf("[server] encoded string size => %d\n", buf.length());
                 
                 std::vector<uchar> data(buf.begin(), buf.end());
                 printf("[server] vector size => %d\n", static_cast<int>(data.size()));
@@ -150,6 +155,7 @@ void LaunchClient(const char *url)
 
 int main(int argc, char** argv)
 {
+	cout << "starting application" << endl;
     string app_type(argv[1]);
     NSecureFaceConfig config = nsecureface::LoadJsonConfig(argv[2]);
     nsecureface::Debug(config);
@@ -160,8 +166,22 @@ int main(int argc, char** argv)
     }
     else if (app_type == "client")
     {
-        NSecureFaceClient client(config);
-        client.LaunchTestClient();
+#ifdef AWS_FACE_RECOGNITION
+		printf("initilising AWS client\n");
+		Aws::SDKOptions options;
+		//options.loggingOptions.logLevel = Aws::Utils::Logging::LogLevel::Trace;
+		Aws::InitAPI(options);
+		{
+			printf("complete initilising AWS client\n");
+
+			NSecureFaceClient client(config);
+			client.LaunchTestClient();
+		}
+		Aws::ShutdownAPI(options);
+#elif
+		NSecureFaceClient client(config);
+		client.LaunchTestClient();
+#endif        
     }
     else if (app_type == "test-client")
     {
@@ -185,6 +205,18 @@ int main(int argc, char** argv)
         sc.Send(msg, s.length());
         sc.Close();
     }
+	else if (app_type == "http")
+	{
+		using namespace nsecureface::network;
+		ImageSender image_sender;
+		int status = image_sender.Init("http://127.0.0.1:5001");
+		cout << "http client init status: " << status << endl;
+		char* s = new char[4];
+		s = "123";
+		void* msg = &s;
+		status = image_sender.SendImage("http://127.0.0.1:5001", msg, 4);
+		cout << "image send: " << status << endl;
+	}
     
     return 0;
 }

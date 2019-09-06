@@ -21,6 +21,9 @@ namespace nsecureface
         std::string face_recognition_service;
         int         face_recognition_service_port;
         std::string image_server_url;
+		std::string auth_service_url;
+		int         auth_service_port;
+		std::string aws_region;
     };
 }
 

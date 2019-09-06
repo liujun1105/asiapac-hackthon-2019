@@ -26,6 +26,18 @@ endif()
 
 add_subdirectory(deps)
 
+find_package(AWSSDK REQUIRED COMPONENTS rekognition)
+message("Found AWSSDK => ${AWSSDK_FOUND}")
+
+if(${AWSSDK_FOUND})
+	add_compile_definitions(AWS_FACE_RECOGNITION)
+
+	message("AWSSDK Libraries => ${AWSSDK_LIB_DIR}")
+	message("AWSSDK Include Directory => ${AWSSDK_INCLUDE_DIR}")
+	message("AWSSDK Bin Directory => ${AWSSDK_BIN_DIR}")
+
+	include_directories(${AWSSDK_INCLUDE_DIR})
+endif()
 
 find_package(OpenCV)
 message("Found OpenCV => ${OpenCV_FOUND}")
@@ -41,6 +53,7 @@ if(${OpenCV_FOUND})
 		common.hpp
         client.hpp
         socket.hpp
+		image-sender.hpp
 	)
 
 	set(NSECURE_FACE_SOURCES
@@ -65,7 +78,11 @@ if(${OpenCV_FOUND})
 	    ${NSECURE_FACE_RESOURCES}
 	)
 
-	target_link_libraries(NSecureFaceService ${OpenCV_LIBRARIES} cppfs nng)
+	if(${AWSSDK_FOUND})
+		target_link_libraries(NSecureFaceService ${OpenCV_LIBRARIES} cppfs nng ${AWSSDK_LIB_DIR}/*.lib)
+	else()
+		target_link_libraries(NSecureFaceService ${OpenCV_LIBRARIES} cppfs nng)
+	endif()
 
 else()
 	message("OpenCV is required for this project")

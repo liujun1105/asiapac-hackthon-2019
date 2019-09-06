@@ -8,8 +8,8 @@
 #ifndef common_h
 #define common_h
 
-#import "nsecureface.h"
-#import "json.hpp"
+#include "nsecureface.h"
+#include "json.hpp"
 
 namespace nsecureface {
     
@@ -34,6 +34,8 @@ namespace nsecureface {
         printf("%-30s: %s\n", "Face Recognition Service", config.face_recognition_service.c_str());
         printf("%-30s: %d\n", "Face Recognition Service Port", config.face_recognition_service_port);
         printf("%-30s: %s\n", "Image Server Url", config.image_server_url.c_str());
+		printf("%-30s: %s\n", "Authentication Service Url", config.auth_service_url.c_str());
+		printf("%-30s: %d\n", "Authentication Service Port", config.auth_service_port);
         printf("%s\n", std::string(110, '#').c_str());
     }
     
@@ -65,6 +67,9 @@ namespace nsecureface {
             config.face_recognition_service      = json_config["face_recognition_service"]["host"].get<std::string>();
             config.face_recognition_service_port = json_config["face_recognition_service"]["port"].get<int>();
             config.image_server_url              = json_config["image_server_url"].get<std::string>();
+			config.auth_service_url              = json_config["authentication_service"]["host"].get<std::string>();
+			config.auth_service_port             = json_config["authentication_service"]["port"].get<int>();
+			config.aws_region                    = json_config["aws"]["region"].get<std::string>();
         }
         else {
             printf("[ERROR] failed to open configuration file config.json");

@@ -1,22 +1,26 @@
 {
-	"device": 0,
-    "face_recognition_service": {
-        "host": "localhost",
-        "port": 9091
-    },
-    "image_server_url": "tcp://localhost:5560",
-	"face_images": "/Users/junliu/Development/Project/asiapac-hackthon-2019/NSecureFace/data/face-images",
-	"face_embeddings": "/Users/junliu/Development/Project/asiapac-hackthon-2019/NSecureFace/data/face-embeddings",
-	"face_recognizer": "/Users/junliu/Development/Project/asiapac-hackthon-2019/NSecureFace/data/face-recognizer",
-	"face_labels": "/Users/junliu/Development/Project/asiapac-hackthon-2019/NSecureFace/data/face-labels",
-    "face_detector": {
-        "network": "/Users/junliu/Development/Project/asiapac-hackthon-2019/NSecureFace/data/face-detector/deploy.prototxt",
-        "weights": "/Users/junliu/Development/Project/asiapac-hackthon-2019/NSecureFace/data/face-detector/res10_300x300_ssd_iter_140000_fp16.caffemodel"
-    },
-    "facemark_detector": "/Users/junliu/Development/Project/asiapac-hackthon-2019/NSecureFace/data/face-detector/lbfmodel.yaml",
-	"face_model": "/Users/junliu/Development/Project/asiapac-hackthon-2019/NSecureFace/data/face-model/nn4.small2.v1.t7",
-    "face_capture": {
-        "face_unknown": "/Users/junliu/Development/Project/asiapac-hackthon-2019/NSecureFace/data/face-capture/unknown/",
-        "face_negative": "/Users/junliu/Development/Project/asiapac-hackthon-2019/NSecureFace/data/face-capture/negative/"
-    }
+  "device": 1,
+  "face_recognition_service": {
+    "host": "localhost",
+    "port": 9091
+  },
+  "image_server_url": "tcp://localhost:5560",
+  "face_images": "/Users/junliu/Development/Project/asiapac-hackthon-2019/NSecureFace/data/face-images",
+  "face_embeddings": "/Users/junliu/Development/Project/asiapac-hackthon-2019/NSecureFace/data/face-embeddings",
+  "face_recognizer": "/Users/junliu/Development/Project/asiapac-hackthon-2019/NSecureFace/data/face-recognizer",
+  "face_labels": "/Users/junliu/Development/Project/asiapac-hackthon-2019/NSecureFace/data/face-labels",
+  "face_detector": {
+    "network": "/Users/junliu/Development/Project/asiapac-hackthon-2019/NSecureFace/data/face-detector/deploy.prototxt",
+    "weights": "/Users/junliu/Development/Project/asiapac-hackthon-2019/NSecureFace/data/face-detector/res10_300x300_ssd_iter_140000_fp16.caffemodel"
+  },
+  "facemark_detector": "/Users/junliu/Development/Project/asiapac-hackthon-2019/NSecureFace/data/face-detector/lbfmodel.yaml",
+  "face_model": "/Users/junliu/Development/Project/asiapac-hackthon-2019/NSecureFace/data/face-model/nn4.small2.v1.t7",
+  "face_capture": {
+    "face_unknown": "/Users/junliu/Development/Project/asiapac-hackthon-2019/NSecureFace/data/face-capture/unknown/",
+    "face_negative": "/Users/junliu/Development/Project/asiapac-hackthon-2019/NSecureFace/data/face-capture/negative/"
+  },
+  "aws": {
+    "access_key_id": "",
+    "secret_access_key": ""
+  }
 }

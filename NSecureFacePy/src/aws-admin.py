@@ -26,4 +26,4 @@ def delete_collection(collection_id):
 
 
 if __name__ == '__main__':
-	list_collection()
+	list_faces('liujunju-face-collection')

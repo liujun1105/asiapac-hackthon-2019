@@ -6,7 +6,7 @@ import base64
 client = boto3.client('rekognition')
 
 collection_id = 'liujunju-face-collection'
-device_id = 0
+device_id = 1
 
 camera = cv2.VideoCapture(device_id)
 while True:

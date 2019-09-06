@@ -4,13 +4,14 @@
 //
 //  Created by Jun Liu on 2019/8/17.
 //
-
+#include "httplib.h"
 #include <stdio.h>
 #include <string>
 #include <vector>
 #include <unordered_map>
 #include <sstream>
 #include <thread>
+#include <stack>
 
 #include <opencv2/dnn/dnn.hpp>
 #include <opencv2/imgproc.hpp>
@@ -31,6 +32,18 @@
 #endif
 
 #include "client.hpp"
+#include "json.hpp"
+#ifdef AWS_FACE_RECOGNITION
+#include <aws/rekognition/RekognitionClient.h>
+#include <aws/core/client/ClientConfiguration.h>
+//#include <aws/core/auth/AWSCredentials.h>
+#include <aws/rekognition/model/SearchFacesByImageRequest.h>
+#include <aws/rekognition/model/Image.h>
+#include <aws/core/utils/Array.h>
+#include <aws/acm/ACMClient.h>
+#include <aws/core/utils/Outcome.h>
+//#include <aws/core/utils/memory/stl/AWSString.h>
+#endif
 
 using namespace cv;
 using namespace cv::dnn;
@@ -39,6 +52,7 @@ using namespace cv::ml;
 using namespace std;
 using namespace std::chrono;
 using namespace cppfs;
+using namespace httplib;
 
 namespace nsecureface
 {
@@ -88,6 +102,9 @@ namespace nsecureface
         this->config = config;
         this->label_count = 1;
         this->pause = true;
+		this->enable_protectection = false;
+		this->enable_authentication = false;
+		this->aws_only = false;
     }
         
     string NSecureFaceClient::GetLabelName(int label)
@@ -100,7 +117,7 @@ namespace nsecureface
             }
         }
         
-        return nullptr;
+        return "NOT_FOUND";
     }
     
     void NSecureFaceClient::TrainRecognizer()
@@ -160,7 +177,7 @@ namespace nsecureface
                             }
                             labels.push_back(this->label_map[last_dirname]);
                             
-                            Mat rotated = ROI.clone();
+                            /*Mat rotated = ROI.clone();
                             transpose(rotated, rotated);
                             flip(rotated, rotated,1);
                             images.push_back(rotated);
@@ -186,12 +203,12 @@ namespace nsecureface
                                 cv::warpAffine(rotated, dest, cv::getRotationMatrix2D(src_center, (i%4)*90, 1.0), rotated.size());
                                 images.push_back(dest);
                                 labels.push_back(this->label_map[last_dirname]);
-                            }
+                            }*/
                             
                             printf(
-                                   "label = %d, name = %s, color = %d, size=%dx%d\n",
-                                   this->label_map[last_dirname], last_dirname.c_str(), ROI.channels(), ROI.rows, ROI.cols
-                                   );
+								"label = %d, name = %s, color = %d, size=%dx%d\n",
+								this->label_map[last_dirname], last_dirname.c_str(), ROI.channels(), ROI.rows, ROI.cols
+                            );
                         }
                     }
                 }
@@ -219,11 +236,11 @@ namespace nsecureface
                 
                 for (auto landmark_point : landmark)
                 {
-                    cv::circle(output, landmark_point, 1, Scalar(255, 0, 0), FILLED);
+                    cv::circle(output, landmark_point, 2, Scalar(255, 0, 0), FILLED);
                 }
                 imshow("Landmarks", output);
                 
-                Point2f left_eye((landmark[39].x - landmark[36].x) / 2.0 + landmark[36].x, (landmark[39].y - landmark[36].y) / 2.0 + landmark[36].y);
+                /*Point2f left_eye((landmark[39].x - landmark[36].x) / 2.0 + landmark[36].x, (landmark[39].y - landmark[36].y) / 2.0 + landmark[36].y);
                 Point2f right_eye((landmark[45].x - landmark[42].x) / 2.0 + landmark[42].x, (landmark[45].y - landmark[42].y) / 2.0 + landmark[42].y);
                 
                 Point2f eye_center((left_eye.x + right_eye.x)/2.0F, (left_eye.y + right_eye.y)/2.0F);
@@ -254,15 +271,24 @@ namespace nsecureface
                 warpAffine(output, warped, r, warped.size());
                 
                 cvtColor(warped, warped, COLOR_RGB2GRAY);
-                this->recognizer->predict(warped, label, distance);
+                this->recognizer->predict(warped, label, distance);*/
                 
-                imshow("Alignment", warped);
+                //show("Alignment", warped);
             }
         }
     }
     
     void NSecureFaceClient::LaunchTestClient()
     {
+		httplib::Client http_client(config.auth_service_url.c_str(), config.auth_service_port);
+
+#ifdef AWS_FACE_RECOGNITION
+		Aws::Client::ClientConfiguration client_configuration;
+		client_configuration.region = config.aws_region.c_str();
+
+		printf("initilising AWS Rekognition Service\n");
+		Aws::Rekognition::RekognitionClient rekoclient(client_configuration);
+#endif
         
         this->detector = readNetFromCaffe(config.dnn_network, config.dnn_weights);
         this->facemark_detector = FacemarkLBF::create();
@@ -273,6 +299,8 @@ namespace nsecureface
         this->recognizer = LBPHFaceRecognizer::create(1, 5, 5, 5, 40);
         this->TrainRecognizer();
         
+		std::stack<int> unknown_idxs;
+
         VideoCapture capture(config.device);
         if (capture.isOpened())
         {
@@ -282,35 +310,35 @@ namespace nsecureface
             namedWindow("NSecureFace Client", WINDOW_NORMAL);
             resizeWindow("NSecureFace Client", 640, 480);
             
-            namedWindow("Alignment", WINDOW_NORMAL);
-            resizeWindow("Alignment", 160, 240);
+            //namedWindow("Alignment", WINDOW_NORMAL);
+            //resizeWindow("Alignment", 160, 240);
             
             namedWindow("Landmarks", WINDOW_NORMAL);
             resizeWindow("Landmarks", 640, 480);
 
-            namedWindow("Grayed", WINDOW_NORMAL);
-            resizeWindow("Grayed", 160, 240);
-            
-            namedWindow("Transpose + Flip 1", WINDOW_NORMAL);
-            resizeWindow("Transpose + Flip 1", 160, 240);
-            
-            namedWindow("Transpose + Flip 2", WINDOW_NORMAL);
-            resizeWindow("Transpose + Flip 2", 160, 240);
+            //namedWindow("Grayed", WINDOW_NORMAL);
+            //resizeWindow("Grayed", 160, 240);
+            //
+            //namedWindow("Transpose + Flip 1", WINDOW_NORMAL);
+            //resizeWindow("Transpose + Flip 1", 160, 240);
+            //
+            //namedWindow("Transpose + Flip 2", WINDOW_NORMAL);
+            //resizeWindow("Transpose + Flip 2", 160, 240);
 
-            namedWindow("Transpose + Flip 3", WINDOW_NORMAL);
-            resizeWindow("Transpose + Flip 3", 160, 240);
-            
-            namedWindow("Affine Transformation 1", WINDOW_NORMAL);
-            resizeWindow("Affine Transformation 1", 160, 240);
-            
-            namedWindow("Affine Transformation 2", WINDOW_NORMAL);
-            resizeWindow("Affine Transformation 2", 160, 240);
+            //namedWindow("Transpose + Flip 3", WINDOW_NORMAL);
+            //resizeWindow("Transpose + Flip 3", 160, 240);
+            //
+            //namedWindow("Affine Transformation 1", WINDOW_NORMAL);
+            //resizeWindow("Affine Transformation 1", 160, 240);
+            //
+            //namedWindow("Affine Transformation 2", WINDOW_NORMAL);
+            //resizeWindow("Affine Transformation 2", 160, 240);
 
-            namedWindow("Affine Transformation 3", WINDOW_NORMAL);
-            resizeWindow("Affine Transformation 3", 160, 240);
-            
-            namedWindow("Affine Transformation 4", WINDOW_NORMAL);
-            resizeWindow("Affine Transformation 4", 160, 240);
+            //namedWindow("Affine Transformation 3", WINDOW_NORMAL);
+            //resizeWindow("Affine Transformation 3", 160, 240);
+            //
+            //namedWindow("Affine Transformation 4", WINDOW_NORMAL);
+            //resizeWindow("Affine Transformation 4", 160, 240);
 
             
             while (true)
@@ -328,6 +356,21 @@ namespace nsecureface
                 ss.clear();
                 ss << "Paused = " << pause;
                 putText(frame, ss.str(), cv::Point(15, 15), cv::FONT_HERSHEY_SIMPLEX, 0.45, Scalar(0, 0, 255), 2);
+
+				ss.str("");
+				ss.clear();
+				ss << "Protection = " << enable_protectection;
+				putText(frame, ss.str(), cv::Point(15, 35), cv::FONT_HERSHEY_SIMPLEX, 0.45, Scalar(0, 0, 255), 2);
+
+				ss.str("");
+				ss.clear();
+				ss << "AuthService = " << enable_authentication;
+				putText(frame, ss.str(), cv::Point(15, 55), cv::FONT_HERSHEY_SIMPLEX, 0.45, Scalar(0, 0, 255), 2);
+
+				ss.str("");
+				ss.clear();
+				ss << "AWS Reko Only = " << aws_only;
+				putText(frame, ss.str(), cv::Point(15, 75), cv::FONT_HERSHEY_SIMPLEX, 0.45, Scalar(0, 0, 255), 2);
                 
                 Mat blobImg = blobFromImage(frame, 1.0, Size(300, 300), Scalar(104.0, 177.0, 123.0), false, false);
                 
@@ -336,7 +379,11 @@ namespace nsecureface
                 
                 Mat detectionMat(detection.size[2], detection.size[3], CV_32F, detection.ptr<float>());
                 bool has_permission = false;
-                if (detectionMat.rows == 0) has_permission = 0;
+				
+				if (detectionMat.rows == 0) has_permission = 0;
+				
+				bool more_than_one_faces = detectionMat.rows > 1;
+				int authorized_face_idx = -1;
 
                 for(int i = 0; i < detectionMat.rows; i++)
                 {
@@ -352,60 +399,67 @@ namespace nsecureface
                         Rect face_rect(cv::Point(x1, y1), cv::Point(x2, y2));
 
                         Mat ROIDemo = frame.clone();
-                        if (face_rect.x >= 0 && face_rect.y >= 0 && face_rect.y + face_rect.height < ROIDemo.rows && face_rect.x + face_rect.width < ROIDemo.cols)
-                        {
-                            ROIDemo.release();
-                            ROIDemo = Mat(frame, face_rect);
-                        }
-                        
-                        cvtColor(ROIDemo, ROIDemo, COLOR_RGB2GRAY);
-                        imshow("Grayed", ROIDemo);
-                        
-                        Mat rotated = ROIDemo.clone();
-                        transpose(rotated, rotated);
-                        flip(rotated, rotated,1);
-                        imshow("Transpose + Flip 1", rotated);
-                        
-                        rotated = ROIDemo.clone();
-                        transpose(rotated, rotated);
-                        flip(rotated, rotated,0);
-                        imshow("Transpose + Flip 2", rotated);
-                        
-                        rotated = ROIDemo.clone();
-                        flip(rotated, rotated,-1);
-                        imshow("Transpose + Flip 3", rotated);
-                        
-                        
-                        for (int i=1; i<4; i++)
-                        {
-                            Mat rotated = ROIDemo.clone();
-                            Point2f src_center(rotated.cols/2.0F, rotated.rows/2.0F);
-                            Mat dest;
-                            cv::warpAffine(rotated, dest, cv::getRotationMatrix2D(src_center, (i%4)*90, 1.0), rotated.size());
-                            imshow("Affine Transformation " + std::to_string(i), dest);
-                        }
-                            
-                        
+                                                                       
                         int label = -1;
                         double confidence = 0.0;
+
                         PerformFaceAlignment(label, confidence, frame, face_rect);
-                        printf("[Face Alignment] person index = %d, label = %d, confidence level = %f\n", i, label, confidence);
-                        
-                        Mat ROI = frame.clone();
-                        if (face_rect.x >= 0 && face_rect.y >= 0 && face_rect.y + face_rect.height < ROI.rows && face_rect.x + face_rect.width < ROI.cols)
-                        {
-                            ROI.release();
-                            ROI = Mat(frame, face_rect);
-                        }
-                        
-                        
-                        cvtColor(ROI, ROI, COLOR_RGB2GRAY);
-                        this->recognizer->predict(ROI, label, confidence);
-                        
-                        
+
+						if (!aws_only)
+						{
+							Mat ROI = frame.clone();
+							if (face_rect.x >= 0 && face_rect.y >= 0 && face_rect.y + face_rect.height < ROI.rows && face_rect.x + face_rect.width < ROI.cols)
+							{
+								ROI.release();
+								ROI = Mat(frame, face_rect);
+							}
+
+
+							cvtColor(ROI, ROI, COLOR_RGB2GRAY);
+							this->recognizer->predict(ROI, label, confidence);
+							confidence = 100 - confidence;
+						}
+#ifdef AWS_FACE_RECOGNITION
+						if (aws_only || confidence == 0 || (confidence < 90 && confidence > 80))
+						{
+							vector<uchar> buf;
+							imshow("aws_image", ROIDemo);
+							imencode(".jpg", ROIDemo, buf);
+							uchar* enc_msg = new uchar[buf.size()];
+
+							Aws::Rekognition::Model::SearchFacesByImageRequest search_request;
+							search_request.SetCollectionId("liujunju-face-collection");
+							Aws::Rekognition::Model::Image face_image;
+							Aws::Utils::ByteBuffer awsbuffer(enc_msg, buf.size());
+
+							face_image.SetBytes(awsbuffer);
+							search_request.SetImage(face_image);
+							search_request.SetMaxFaces(2);
+							printf("search image using aws rekognition service\n");
+							auto search_result = rekoclient.SearchFacesByImage(search_request);
+							auto image_result = search_result.GetResult();
+							auto face_matches = image_result.GetFaceMatches();
+														
+							for (auto face_match : face_matches)
+							{
+								printf("Face %s, Similarity %f\n", face_match.GetFace().GetExternalImageId().c_str(), face_match.GetFace().GetConfidence());
+							}
+
+							double aws_confidence = 0;
+							if (!face_matches.empty())
+							{
+								aws_confidence = face_matches[0].GetFace().GetConfidence();
+								confidence = confidence > aws_confidence ? confidence : aws_confidence;
+							}
+							else 
+							{
+								confidence = 0;
+							}							 
+						}
+#endif 
                         ss.str("");
                         ss.clear();
-                        if (label > 0 && confidence < 20) {
+                        if (label > 0 && confidence > 90) {
                             printf("person index = %d, label = %d, confidence level = %f\n", i, label, confidence);
                             int y = y1 - 10 > 10 ?  y1 - 10 : y1 + 10;
                             rectangle(frame, cv::Point(x1, y1), cv::Point(x2, y2), cv::Scalar(0, 0, 255));
@@ -417,10 +471,34 @@ namespace nsecureface
                             DWORD username_len = UNLEN + 1;
                             GetUserName(username, &username_len);
 
+							char hostname[UNLEN + 1];
+							DWORD hostname_len = UNLEN + 1;
+							gethostname(hostname, hostname_len);
+
                             if (GetLabelName(label) == username)
                             {
-                                has_permission = true;
+								if (enable_authentication)
+								{
+									stringstream get_param;
+									get_param << "/count?client_name=camera_app&machine_name=" << hostname << "&username=" << username;									
+									auto res = http_client.Get(get_param.str().c_str());
+									if (res && res->status == 200) {
+										std::cout << res->body << std::endl;
+										int count = stoi(res->body);
+										if (count > 0) has_permission = true;
+										else has_permission = false;
+									}
+								}
+								else
+								{
+									has_permission = true;
+								}
                             }
+
+							if (has_permission && detectionMat.rows > 1)
+							{
+								authorized_face_idx = i;
+							}
 
 #endif                            
 
@@ -432,21 +510,69 @@ namespace nsecureface
                             
                             if (!pause)
                             {
+								ss.str("");
+								ss.clear();
                                 milliseconds ms = duration_cast<milliseconds>(system_clock::now().time_since_epoch());
-                                ss << config.face_capture_unknown << "unknown_" << ms.count() << ".jpg";
+                                ss << config.face_capture_unknown << "\\unknown_" << ms.count() << ".jpg";
+								cout << ss.str() << endl;
                                 imwrite(ss.str(), original_frame);
                             }
                         }
                     }
                 }
+												
+				if (authorized_face_idx != -1) {
+					for (int i = 0; i < detectionMat.rows; i++)
+					{
+						stringstream unknown_face_stream;
 
-                if (has_permission) {
-                    thread t([&](){GrantAccess();});
-                    t.detach();
-                } else if (!has_permission) {
-                    thread t([&](){BlockAccess();});
-                    t.detach();
-                }
+						if (i == authorized_face_idx)
+							continue;
+
+						unknown_idxs.push(i);
+
+						float confidence = detectionMat.at<float>(i, 2);
+
+						if (confidence > 0.8)
+						{
+							int x1 = static_cast<int>(detectionMat.at<float>(i, 3) * frame.cols);
+							int y1 = static_cast<int>(detectionMat.at<float>(i, 4) * frame.rows);
+							int x2 = static_cast<int>(detectionMat.at<float>(i, 5) * frame.cols);
+							int y2 = static_cast<int>(detectionMat.at<float>(i, 6) * frame.rows);
+
+							Rect face_rect(cv::Point(x1, y1), cv::Point(x2, y2));
+							
+							namedWindow(unknown_face_stream.str(), WINDOW_NORMAL);
+							resizeWindow(unknown_face_stream.str(), 160, 240);
+
+						}
+					}
+				}
+				else {
+					while (!unknown_idxs.empty())
+					{
+						int unknown_idx = unknown_idxs.top();
+						unknown_idxs.pop();
+
+						stringstream unknown_face_stream;
+						unknown_face_stream << "Unknown#" << unknown_idx;
+						destroyWindow(unknown_face_stream.str());
+					}
+				}
+				authorized_face_idx = -1;
+
+				printf("has permission -> %d\n", has_permission);
+				if (enable_protectection)
+				{
+					if (has_permission) {
+						thread t([&]() {GrantAccess(); });
+						t.detach();
+					}
+					else if (!has_permission) {
+						thread t([&]() {BlockAccess(); });
+						t.detach();
+					}
+				}
                 
                 imshow("NSecureFace Client", frame);
                 
@@ -457,13 +583,25 @@ namespace nsecureface
                     ss.str("");
                     ss.clear();
                     milliseconds ms = duration_cast<milliseconds>(system_clock::now().time_since_epoch());
-                    ss << config.face_capture_negative << "negative_" << ms.count() << ".jpg";
+                    ss << config.face_capture_negative << "\\negative_" << ms.count() << ".jpg";
                     imwrite(ss.str(), original_frame);
                 }
                 else if (k == 'p')
                 {
                     pause = !pause;
                 }
+				else if (k == 'e')
+				{
+					enable_protectection = !enable_protectection;
+				}
+				else if (k == 'a')
+				{
+					enable_authentication = !enable_authentication;
+				}
+				else if (k == 'w')
+				{
+					aws_only = !aws_only;
+				}
             }
             frame.release();
             capture.release();
